@@ -27,7 +27,11 @@ const SideNav = (props: any) => {
 
         if (userData)
             try {
-                const response = await fetch(`http://localhost:3000/getAllUsers/${userData._id}`);
+                const response = await fetch(`http://localhost:3000/getAllUsers/${userData._id}`, {
+                    headers: {
+                        authorization: `Bearer ${userData.token}`
+                    }
+                });
                 const result: Contacts[] = await response.json();
                 setContacts(result);
                 setOpenAddContact(true)
@@ -48,7 +52,10 @@ const SideNav = (props: any) => {
         try {
             const response = await fetch("http://localhost:3000/addToMyContacts", {
                 method: "POST",
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    authorization: `Bearer ${userData.token}` 
+                },
                 body: JSON.stringify(obj)
             });
             if (!response.ok) {
@@ -66,7 +73,11 @@ const SideNav = (props: any) => {
         const renderMyContactList = async () => {
             if (userData) {
                 try {
-                    const response = await fetch(`http://localhost:3000/getMyContacts/${userData._id}`);
+                    const response = await fetch(`http://localhost:3000/getMyContacts/${userData._id}`, {
+                        headers: {
+                            authorization: `Bearer ${userData.token}`
+                        }
+                    });
                     const result = await response.json();
                     setMyContactList(result);
                     // localStorage.setItem('myContacts', JSON.stringify(result));

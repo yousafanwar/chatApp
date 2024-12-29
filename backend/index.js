@@ -5,7 +5,7 @@ import message from './db/schemas/message.js';
 import user from './db/schemas/user.js';
 import { Server } from "socket.io";
 import http from 'http';
-import { Socket } from 'dgram';
+import { login, registerUser, authenticate } from './services/Auth.js'
 
 const app = express();
 app.use(express.json());
@@ -13,7 +13,7 @@ app.use(cors());
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
-        origin: "http://localhost:5173", // Replace with the correct client origin
+        origin: "http://localhost:5173", 
         methods: ["GET", "POST"],
         credentials: true,
     },
@@ -47,27 +47,24 @@ io.on('connection', (socket) => {
     })
 })
 
-app.post('/login', async (req, res) => {
-    const { email, password } = req.body;
-    const getUser = await user.findOne({ email, password });
-    res.json({ getUser });
-})
+app.post('/login', login);
 
-app.post('/registerUser', async (req, res) => {
-    const { name, email, password } = req.body;
-    const newUser = new user({ name, email, password });
-    newUser.save();
-    res.send(200);
-})
+app.post('/registerUser', registerUser);
+// app.post('/registerUser', async (req, res) => {
+//     const { name, email, password } = req.body;
+//     const newUser = new user({ name, email, password });
+//     newUser.save();
+//     res.send(200);
+// })
 
-app.get('/getAllUsers/:loggesInUser', async (req, res) => {
+app.get('/getAllUsers/:loggesInUser', authenticate, async (req, res) => {
     const { loggesInUser } = req.params;
     const response = await user.find({ _id: { $ne: loggesInUser } }).select("_id name email");
     res.json(response);
 })
 
 // add a contact to the myContacts
-app.post('/addToMyContacts', async (req, res) => {
+app.post('/addToMyContacts', authenticate, async (req, res) => {
     const { loggedInUserId, _id, email, name } = req.body;
     try {
         await user.updateOne({ _id: loggedInUserId }, { $push: { myContacts: { _id, email, name } } });
@@ -79,7 +76,7 @@ app.post('/addToMyContacts', async (req, res) => {
 })
 
 // get myContacts
-app.get('/getMyContacts/:_id', async (req, res) => {
+app.get('/getMyContacts/:_id', authenticate, async (req, res) => {
     const { _id } = req.params;
     try {
         const response = await user.findOne({ _id });

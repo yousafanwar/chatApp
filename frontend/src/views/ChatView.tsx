@@ -70,27 +70,38 @@ const ChatView = () => {
         setSelectedContactData(childData);
     }
 
+    const renderWelcomeMessage = () => {
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '70vh' }}>
+                <Typography variant="h1">Welcome to the chatapp</Typography>
+            </Box>
+        )
+    }
+
     return (
         <Box>
-            <h1>Chat View</h1>
             <Box sx={{ width: "250px", borderRight: "1px solid #ccc" }}>
                 <SideNav sendData={fetchDataFromChild} />
             </Box>
-            {selectedContactData && <Typography>Chat between {userData.name} & {selectedContactData.name}</Typography>}
-            <Box gap={2} sx={{ display: "flex", flexDirection: "column", marginLeft: "200px" }}>
+            {!selectedContactData ? renderWelcomeMessage() :
+                <>
+                    <Typography variant="h1">Chat View</Typography>
+                    {selectedContactData && <Typography>Chat between {userData.name} & {selectedContactData.name}</Typography>}
+                    <Box gap={2} sx={{ display: "flex", flexDirection: "column", marginLeft: "200px" }}>
 
-                {
-                    data && data.map((item, index) => {
-                        return <Box key={index} sx={{ display: "flex", justifyContent: item.sender === userData._id ? "flex-end" : "flex-start" }}>
-                            {item.text && <Card sender={item.sender} text={item.text} timeStamp={item.timeStamp} />}
-                        </Box>
-                    })
-                }
-            </Box>
-            <Box sx={{ display: "flex", marginLeft: "200px", marginTop: "20px" }}>
-                <TextField fullWidth placeholder="Enter text" variant="outlined" value={inputText} onChange={(e) => { setInputText(e.target.value) }} />
-                <Button sx={{ ":hover": { backgroundColor: "black", color: "white" } }} onClick={handleText}><SendIcon /></Button>
-            </Box>
+                        {
+                            data && data.map((item, index) => {
+                                return <Box key={index} sx={{ display: "flex", justifyContent: item.sender === userData._id ? "flex-end" : "flex-start" }}>
+                                    {item.text && <Card sender={item.sender} text={item.text} timeStamp={item.timeStamp} />}
+                                </Box>
+                            })
+                        }
+                    </Box>
+                    <Box sx={{ display: "flex", marginLeft: "200px", marginTop: "20px" }}>
+                        <TextField fullWidth placeholder="Enter text" variant="outlined" value={inputText} onChange={(e) => { setInputText(e.target.value) }} />
+                        <Button sx={{ ":hover": { backgroundColor: "black", color: "white" } }} onClick={handleText}><SendIcon /></Button>
+                    </Box>
+                </>}
         </Box>
     )
 }
