@@ -1,99 +1,97 @@
-import { Button, Box, TextField } from "@mui/material";
+import { Button, Box, TextField, Typography } from "@mui/material";
 import Card from "../components/Card";
-import {useState, useEffect} from 'react';
+import { useState, useEffect } from 'react';
 import SideNav from "../components/SideNav";
+import { io } from "socket.io-client";
+import SendIcon from '@mui/icons-material/Send';
 
-
-interface Message{
+interface Message {
     sender: string;
     text: string;
-    timeStamp: {type: Date};
+    timeStamp: { type: Date };
 }
 
+const server = io("http://localhost:3000/");
 const ChatView = () => {
 
-    const [data, setData] = useState<Message[] | null>(null);
-    const [inputText, setInputText] = useState<string>(""); 
-    const [flag, setFlag] = useState<boolean>(false);
-    const [userData, setUserData] = useState<any>("");
+    const [data, setData] = useState<Message[] | []>([]);
+    const [inputText, setInputText] = useState<string>("");
+    const [userData, setUserData] = useState<any>(null);
+    const [selectedContactData, setSelectedContactData] = useState<any>("");
 
-    
     useEffect(() => {
-        const fetchData = async () => {
-            try{
-                // NEED TO SET RECEIVER AND SENDER HERE
-                const response = await fetch(`http://localhost:3000/getAllMessages`);
-                const result: Message[] = await response.json();
-                console.log("getAllmessages", result);
-                setData(result);
-//                const name =  localStorage.getItem("userName");
-//                localStorage.clear();
-                setUserData(localStorage.getItem("userName"));
-            }
-            catch(error){
-                console.error(error);
-            }
+
+        const loggedInUser = JSON.parse(localStorage.getItem("userData") || "{}");
+        console.log("user data from local storage", loggedInUser);
+
+        if (!userData) {
+            setUserData(loggedInUser);
+        }
+    }, [selectedContactData])
+
+    useEffect(() => {
+        if (!userData || !selectedContactData) return;
+        server.emit('fetchChat', { sender: userData._id, receiver: selectedContactData._id });
+        console.log("fetchChat has been triggered");
+        const handleChatHistory = (chatHistory: Message[]) => {
+            console.log("chatHistory", chatHistory);
+            setData(chatHistory);
+        };
+        server.on('chatHistory', handleChatHistory);
+        return () => {
+            server.off('chatHistory', handleChatHistory);
+        };
+
+    }, [selectedContactData])
+
+    useEffect(() => {
+        const readNewMessage = (newMessage: any) => {
+            console.log("new message", newMessage);
+
+            setData((preState) => [...preState, newMessage]);
         }
 
-        fetchData();
-   }, [flag])
+        server.on('message', readNewMessage);
 
-   const handleText = async () => {
-       const obj = {
-           sender: localStorage.getItem("userName"),
-           text: inputText
-        }
-        try{
+        console.log("data after submit chat is pushed", data);
+        setInputText("");
 
-            const response = await fetch(`http://localhost:3000/createMessage`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(obj)
-            });
-            if(!response.ok){
-                console.log("Error while creating new record");
-            }
+        return () => {
+            server.off('message');
+        };
+    }, []);
 
-            const result = await response.json();
-            setFlag(!flag);
-            console.log(result);
-        }
-        catch(error){
-            console.error(error);
-        }
-            
-   }
+    const handleText = () => {
+        server.emit('message', { sender: userData._id, receiver: selectedContactData._id, text: inputText });
+        setInputText("");
+    }
 
+    const fetchDataFromChild = (childData: any) => {
+        setSelectedContactData(childData);
+    }
 
     return (
-        <Box >
-        <h1>Chat View</h1>
-        <SideNav />
-        <Box gap={2} sx={{ display: "flex", flexDirection: "column" }}>
+        <Box>
+            <h1>Chat View</h1>
+            <Box sx={{ width: "250px", borderRight: "1px solid #ccc" }}>
+                <SideNav sendData={fetchDataFromChild} />
+            </Box>
+            {selectedContactData && <Typography>Chat between {userData.name} & {selectedContactData.name}</Typography>}
+            <Box gap={2} sx={{ display: "flex", flexDirection: "column", marginLeft: "200px" }}>
 
-        {
-            data && data.map((item, index) => {
-                return <Box key={index} sx={{display: "flex", justifyContent: item.sender === userData ? "flex-end" : "flex-start"}}> 
-                {item.text && <Card sender= {item.sender} text= {item.text} timeStamp={item.timeStamp} />}
-                </Box>
-            }) 
-
-            }
-            <Box
-      component="form"
-      sx={{ '& > :not(style)': { m: 1, width: '25ch'} }}
-      noValidate
-      autoComplete="off"
-    >
-    </Box>
+                {
+                    data && data.map((item, index) => {
+                        return <Box key={index} sx={{ display: "flex", justifyContent: item.sender === userData._id ? "flex-end" : "flex-start" }}>
+                            {item.text && <Card sender={item.sender} text={item.text} timeStamp={item.timeStamp} />}
+                        </Box>
+                    })
+                }
+            </Box>
+            <Box sx={{ display: "flex", marginLeft: "200px", marginTop: "20px" }}>
+                <TextField fullWidth placeholder="Enter text" variant="outlined" value={inputText} onChange={(e) => { setInputText(e.target.value) }} />
+                <Button sx={{ ":hover": { backgroundColor: "black", color: "white" } }} onClick={handleText}><SendIcon /></Button>
+            </Box>
         </Box>
-              <TextField id="outlined-basic" label="Outlined" variant="outlined" value={inputText} onChange={(e) => {setInputText(e.target.value)}} />
-    <Button onClick={handleText}>Push me</Button>
-
-                </Box>
-
     )
 }
 

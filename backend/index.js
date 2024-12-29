@@ -3,63 +3,94 @@ import cors from 'cors';
 import mongoose from './db/db.js';
 import message from './db/schemas/message.js';
 import user from './db/schemas/user.js';
+import { Server } from "socket.io";
+import http from 'http';
+import { Socket } from 'dgram';
 
 const app = express();
-app.use(express.json()); 
+app.use(express.json());
 app.use(cors());
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: {
+        origin: "http://localhost:5173", // Replace with the correct client origin
+        methods: ["GET", "POST"],
+        credentials: true,
+    },
+});
 
-app.post('/login', async(req, res) => {
-    const {email, password} = req.body;
-    const getUser = await user.findOne({email, password});
-    res.json({getUser});
+
+io.on('connection', (socket) => {
+    console.log('User has been connected', socket.id);
+
+    socket.on('message', async (data) => {
+        const { sender, receiver, text } = data;
+        const newMessage = new message({ sender, receiver, text });
+        await newMessage.save();
+        io.emit('message', newMessage);
+    })
+
+    socket.on('fetchChat', async (data) => {
+        const { sender, receiver } = data;
+        const chats = await message.find({
+            $or: [
+                { sender, receiver },
+                { sender: receiver, receiver: sender },
+            ],
+        }).sort({ timeStamp: 1 });
+
+        io.emit('chatHistory', chats);
+
+    });
+    socket.on('disconnect', () => {
+        console.log('user disconneted');
+    })
 })
 
-app.post('/registerUser', async(req, res) => {
-    const {name, email, password} = req.body;
-    const newUser = new user({name, email, password});
+app.post('/login', async (req, res) => {
+    const { email, password } = req.body;
+    const getUser = await user.findOne({ email, password });
+    res.json({ getUser });
+})
+
+app.post('/registerUser', async (req, res) => {
+    const { name, email, password } = req.body;
+    const newUser = new user({ name, email, password });
     newUser.save();
     res.send(200);
 })
 
-app.get('/getAllUsers/:loggesInUser', async(req, res) => {
-    const {loggesInUser} = req.params;
-    const response = await user.find({_id: {$ne: loggesInUser}}).select("_id name email");
+app.get('/getAllUsers/:loggesInUser', async (req, res) => {
+    const { loggesInUser } = req.params;
+    const response = await user.find({ _id: { $ne: loggesInUser } }).select("_id name email");
     res.json(response);
 })
 
-app.get('/getAllMessages', async (req, res) => {
-    const {sender, receiver} = req.params;
-    const chats = await message.find({
-        $or: [
-          { sender: sender, receiver: receiver },
-          { sender: receiver, receiver: sender },
-        ],
-      }).sort({ timeStamp: 1 });
-    res.json(chats);
-})
-
 // add a contact to the myContacts
-app.post('/addToMyContacts', async(req, res) => {
-    const {_id, email, name} = req.body; 
-    try{
-        const updatedUser = user.updateOne({_id}, {$push: {myContacts: {_id, email, name}}});
-        updatedUser.save();
-        res.sendStatus(200);
+app.post('/addToMyContacts', async (req, res) => {
+    const { loggedInUserId, _id, email, name } = req.body;
+    try {
+        await user.updateOne({ _id: loggedInUserId }, { $push: { myContacts: { _id, email, name } } });
+        res.status(200).json({ response: "Record created successfully" });
     }
-    catch(error){
+    catch (error) {
         res.send(error);
     }
 })
 
-app.post('/createMessage', async (req, res) => {
-    const {sender, receiver, text} = req.body;
-    const newMessage = new message({sender, receiver, text});
-    await newMessage.save();
-    res.status(200).json({response: "Record created successfully"});
+// get myContacts
+app.get('/getMyContacts/:_id', async (req, res) => {
+    const { _id } = req.params;
+    try {
+        const response = await user.findOne({ _id });
+        const result = response.myContacts;
+        res.json(result);
+    }
+    catch (error) {
+        res.send(error);
+    }
 })
 
-
-
-app.listen(3000, function(req, res){
+server.listen(3000, function (req, res) {
     console.log("app is listing on 3000");
 })
