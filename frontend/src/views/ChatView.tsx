@@ -27,6 +27,10 @@ const ChatView = () => {
         if (!userData) {
             setUserData(loggedInUser);
         }
+
+        if (!loggedInUser.token) {
+            window.location.href = '/login';
+        }
     }, [selectedContactData])
 
     useEffect(() => {
@@ -46,14 +50,12 @@ const ChatView = () => {
 
     useEffect(() => {
         const readNewMessage = (newMessage: any) => {
-            console.log("new message", newMessage);
 
             setData((preState) => [...preState, newMessage]);
         }
 
         server.on('message', readNewMessage);
 
-        console.log("data after submit chat is pushed", data);
         setInputText("");
 
         return () => {
@@ -92,7 +94,7 @@ const ChatView = () => {
                         {
                             data && data.map((item, index) => {
                                 return <Box key={index} sx={{ display: "flex", justifyContent: item.sender === userData._id ? "flex-end" : "flex-start" }}>
-                                    {item.text && <Card sender={item.sender} text={item.text} timeStamp={item.timeStamp} />}
+                                    {item.text && <Card src={item.avatar} sender={item.sender} text={item.text} timeStamp={item.timeStamp} />}
                                 </Box>
                             })
                         }

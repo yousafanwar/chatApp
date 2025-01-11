@@ -8,28 +8,25 @@ const privateKey = "secret";
 const saltRounds = 10;
 
 export const authenticate = async (req, res, next) => {
-    try{
+    try {
 
         const authHeaders = req.headers.authorization;
-        console.log("authHeaders:", authHeaders);
-    
         const token = authHeaders && authHeaders.split(" ")[1];
-        console.log("token:", token);
-    
-        if(!token){
-            throw new Error("Token not provided");
+
+        if (!token) {
+            return res.status(401).json({ error: "Token not provided" });
         }
-        
-        jwt.verify(token, privateKey, function(err, decoded) {
-            if(err){
-                throw new Error(err);
-            }else{
+
+        jwt.verify(token, privateKey, function (err, decoded) {
+            if (err) {
+                return res.status(403).json({ error: "Token verification failed" });
+            } else {
                 next();
             }
-          });
+        });
     }
-    catch(error){
-        console.log("Authentication failed:", error);
+    catch (error) {
+        res.status(500).json({ error: "Internal server error" });
     }
 }
 
@@ -39,14 +36,14 @@ export const login = async (req, res) => {
         const findUser = await user.findOne({ email });
         console.log(findUser);
         if (!findUser) {
-            res.status(401).json({ "error message": "Incorrect email" })
+            res.status(401).json({ error: "Incorrect email" })
         }
 
-        bcrypt.compare(password, findUser.password, function (err, result) {
+        await bcrypt.compare(password, findUser.password, function (err, result) {
             if (!result) {
-                res.status(401).send("Wrong password");
+                res.status(401).json({ error: "Wrong password" });
             } else {
-                jwt.sign(email, privateKey, function (err, token) {
+                jwt.sign({ email }, privateKey, { expiresIn: '1h' }, function (err, token) {
                     if (err) {
                         throw new Error(err);
                     }
@@ -55,19 +52,18 @@ export const login = async (req, res) => {
                             _id: findUser._id,
                             email: findUser.email,
                             name: findUser.name,
+                            avatar: findUser.avatar,
                             token
                         }
-                        console.log(userData);
                         res.json({ userData });
                     }
-
                 });
             }
         });
-
     }
     catch (error) {
         console.log("Error while logingin in:", error);
+        res.status(500).json({ error: "Internal server error" });
     }
 }
 
@@ -76,13 +72,13 @@ export const registerUser = async (req, res) => {
     try {
         const { name, email, password } = req.body;
 
-        bcrypt.hash(password, saltRounds, async function (err, hash) {
+        await bcrypt.hash(password, saltRounds, async function (err, hash) {
             const newUser = new user({ name, email, password: hash });
             await newUser.save();
-            res.status(200).json("New user registered");
+            res.status(200).json({ message: "New user registered" });
 
             if (err) {
-                console.error(err);
+                console.error("password hash error:", err);
             }
         });
 

@@ -1,27 +1,31 @@
 import * as React from 'react';
-import { Box, Drawer, Button, List, Divider, ListItem, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
-import InboxIcon from '@mui/icons-material/MoveToInbox';
-import MailIcon from '@mui/icons-material/Mail';
+import { Box, Drawer, Button, List, Divider, ListItem, ListItemButton, Backdrop, CircularProgress, ListItemText, Typography, Avatar, ButtonBase, Dialog } from '@mui/material';
+import LogoutIcon from '@mui/icons-material/Logout';
+import CancelIcon from '@mui/icons-material/Cancel';
 import { useState, useEffect } from 'react';
+import ProfileView from '../views/ProfileView';
 
 interface Contacts {
     _id: String,
     name: String,
-    email: String
+    email: String,
+    avatar: String
 }
 
 const SideNav = (props: any) => {
 
     const drawerWidth = 240;
     const [userData, setUserData] = useState<any>(null);
-    const [contacts, setContacts] = useState<Contacts[] | null>(null);
+    const [contacts, setContacts] = useState<Contacts[]>([]);
     const [openAddContact, setOpenAddContact] = useState<boolean>(false);
-    const [myContactList, setMyContactList] = useState<Contacts[] | null>(null);
+    const [myContactList, setMyContactList] = useState<Contacts[]>([]);
+    const [showProfile, setShowProfile] = useState<boolean>(false);
+    const [showBackdrop, setShowBackdrop] = useState<boolean>(false);
 
     useEffect(() => {
         setUserData(JSON.parse(localStorage.getItem("userData") || "{}"));
-        
-    }, [contacts])
+
+    }, [])
 
     const getContacts = async () => {
 
@@ -33,7 +37,16 @@ const SideNav = (props: any) => {
                     }
                 });
                 const result: Contacts[] = await response.json();
-                setContacts(result);
+                
+                const myContactIds = myContactList.map((item) => {
+                    return item._id;
+                })
+
+                const filteredResult = result.filter((item) => {
+                    return !myContactIds.includes(item._id);
+                })
+
+                setContacts(filteredResult);
                 setOpenAddContact(true)
             } catch (error) {
                 console.error(error);
@@ -42,30 +55,30 @@ const SideNav = (props: any) => {
 
 
     const handleContactClick = async (e: any) => {
+        setShowBackdrop(true);
         const obj = {
             loggedInUserId: userData._id,
             _id: e._id,
-            email: e.email,
-            name: e.name
         }
-        console.log("Clicked list item", e);
         try {
             const response = await fetch("http://localhost:3000/addToMyContacts", {
                 method: "POST",
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
-                    authorization: `Bearer ${userData.token}` 
+                    authorization: `Bearer ${userData.token}`
                 },
                 body: JSON.stringify(obj)
             });
             if (!response.ok) {
                 console.log("Error while updating contact list");
-            }
+            } 
 
-            const result = await response.json();
-            console.log(result);
         } catch (error) {
             console.error(error);
+        }
+
+        finally{
+            setShowBackdrop(false);
         }
     }
 
@@ -80,20 +93,25 @@ const SideNav = (props: any) => {
                     });
                     const result = await response.json();
                     setMyContactList(result);
-                    // localStorage.setItem('myContacts', JSON.stringify(result));
                 }
                 catch (error) {
                     console.error(error);
                 }
             }
         };
-    
+
         renderMyContactList();
-    }, [userData])
+    }, [userData, showBackdrop])
 
+    const handleLogOut = () => {
+        console.log("log out clicked");
+        localStorage.clear();
+        window.location.href = '/login';
+    }
 
-
-
+    const handleClose = () => {
+        setShowBackdrop(false);
+    }
 
     return (
         <Drawer sx={{
@@ -109,14 +127,11 @@ const SideNav = (props: any) => {
             open={true}>
             <Box sx={{ width: 250 }} role="application">
                 <Button onClick={getContacts}>Add new contacts</Button>
-                {openAddContact && <List>
-                    {contacts && <Typography>Hello! {userData.name}</Typography>}
-                    {contacts && contacts.map((item, index) => (
+                {openAddContact && <List key={contacts.length}>
+                    {contacts && Array.isArray(contacts) && contacts.map((item, index) => (
                         <ListItem key={index} disablePadding>
                             <ListItemButton>
-                                <ListItemIcon>
-                                    {index % 2 === 0 ? <InboxIcon /> : <MailIcon />}
-                                </ListItemIcon>
+                                <Avatar src={item.avatar ? item.avatar.toString() : ""} alt='avatar' />
                                 <ListItemText primary={item.name} onClick={() => handleContactClick(item)} />
                             </ListItemButton>
                         </ListItem>
@@ -124,24 +139,39 @@ const SideNav = (props: any) => {
                     <Button onClick={() => setOpenAddContact(false)}>Close</Button>
                 </List>}
                 <Divider />
-                {myContactList && myContactList.map((item, index) => {
-
-                    return <List key={index}>
-                        <ListItem  disablePadding>
+                {showBackdrop && <Backdrop
+                            sx={(theme) => ({ color: '#fff', zIndex: theme.zIndex.drawer + 1 })}
+                            open={showBackdrop}
+                            onClick={handleClose}
+                        >
+                            <CircularProgress color="inherit" />
+                        </Backdrop>}                        
+                <List key={myContactList.length}>
+                {myContactList && Array.isArray(myContactList) && myContactList.map((item, index) => {
+                    return <ListItem key={index} disablePadding>
                             <ListItemButton>
-                                <ListItemIcon>
-                                    {index % 2 === 0 ? <InboxIcon /> : <MailIcon />}
-                                </ListItemIcon>
+                                <Avatar src={item.avatar ? item.avatar.toString() : ""} alt='user avatar' />
                                 <ListItemText primary={item.name} onClick={() => props.sendData(item)} />
                                 {/* <ListItemText primary={item.name} onClick={() => localStorage.setItem("selectedContact", JSON.stringify(item))} /> */}
                             </ListItemButton>
                         </ListItem>
-                    </List>
-
                 })
-
                 }
+                </List>
             </Box>
+            <Dialog open={showProfile}>
+                <CancelIcon onClick={() => { setShowProfile(false) }} sx={{ cursor: "pointer", position: "fixed" }} />
+                <ProfileView />
+            </Dialog>
+            {userData && <><ButtonBase onClick={() => { setShowProfile(true) }}>
+                <Avatar alt="User avatar" src={userData.avatar ? userData.avatar.toString() : ""} sx={{ width: 150, height: 150 }} />
+            </ButtonBase >
+                <Typography>Hi {userData.name}</Typography></>
+            }
+            <ButtonBase >
+                <LogoutIcon onClick={handleLogOut} />
+            </ButtonBase>
+
         </Drawer>
     )
 }

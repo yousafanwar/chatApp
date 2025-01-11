@@ -1,6 +1,4 @@
-import Chip from '@mui/material/Chip';
-import Stack from '@mui/material/Stack';
-import { Button, Box, TextField } from "@mui/material";
+import { Stack, Chip, Avatar } from "@mui/material";
 import '../styles/ChatView.css';
 import { useState, useEffect } from 'react';
 
@@ -14,7 +12,14 @@ const Card = (props: any) => {
     return (
         <>
             <Stack direction="row" spacing={1}>
-                <Chip label={props.text} variant={props.sender === userData._id ? "filled" : "outlined"} sx={{ margin: 3 }} />
+                <Chip avatar={<Avatar src={props.avatar} alt="User avatar"/>} label={props.text} variant={props.sender === userData._id ? "filled" : "outlined"} sx={{
+                    margin: 3, height: 'auto',
+                    '& .MuiChip-label': {
+                        display: 'block',
+                        whiteSpace: 'normal',
+                        maxWidth: '50vw'
+                    },
+                }} />
             </Stack>
         </>
     )
