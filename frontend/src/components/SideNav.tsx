@@ -5,7 +5,7 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import { useState, useEffect } from 'react';
 import ProfileView from '../views/ProfileView';
 
-interface Contacts {
+interface IContact {
     _id: String,
     name: String,
     email: String,
@@ -16,9 +16,9 @@ const SideNav = (props: any) => {
 
     const drawerWidth = 240;
     const [userData, setUserData] = useState<any>(null);
-    const [contacts, setContacts] = useState<Contacts[]>([]);
+    const [contacts, setContacts] = useState<IContact[]>([]);
     const [openAddContact, setOpenAddContact] = useState<boolean>(false);
-    const [myContactList, setMyContactList] = useState<Contacts[]>([]);
+    const [myContactList, setMyContactList] = useState<IContact[]>([]);
     const [showProfile, setShowProfile] = useState<boolean>(false);
     const [showBackdrop, setShowBackdrop] = useState<boolean>(false);
 
@@ -36,8 +36,8 @@ const SideNav = (props: any) => {
                         authorization: `Bearer ${userData.token}`
                     }
                 });
-                const result: Contacts[] = await response.json();
-                
+                const result: IContact[] = await response.json();
+
                 const myContactIds = myContactList.map((item) => {
                     return item._id;
                 })
@@ -71,13 +71,13 @@ const SideNav = (props: any) => {
             });
             if (!response.ok) {
                 console.log("Error while updating contact list");
-            } 
+            }
 
         } catch (error) {
             console.error(error);
         }
 
-        finally{
+        finally {
             setShowBackdrop(false);
         }
     }
@@ -91,6 +91,10 @@ const SideNav = (props: any) => {
                             authorization: `Bearer ${userData.token}`
                         }
                     });
+                    if (!response.ok) {
+                        alert("You are not authenticated, please login again");
+                        window.location.href = '/login';
+                    }
                     const result = await response.json();
                     setMyContactList(result);
                 }
@@ -140,23 +144,23 @@ const SideNav = (props: any) => {
                 </List>}
                 <Divider />
                 {showBackdrop && <Backdrop
-                            sx={(theme) => ({ color: '#fff', zIndex: theme.zIndex.drawer + 1 })}
-                            open={showBackdrop}
-                            onClick={handleClose}
-                        >
-                            <CircularProgress color="inherit" />
-                        </Backdrop>}                        
+                    sx={(theme) => ({ color: '#fff', zIndex: theme.zIndex.drawer + 1 })}
+                    open={showBackdrop}
+                    onClick={handleClose}
+                >
+                    <CircularProgress color="inherit" />
+                </Backdrop>}
                 <List key={myContactList.length}>
-                {myContactList && Array.isArray(myContactList) && myContactList.map((item, index) => {
-                    return <ListItem key={index} disablePadding>
+                    {myContactList && Array.isArray(myContactList) && myContactList.map((item, index) => {
+                        return <ListItem key={index} disablePadding>
                             <ListItemButton>
                                 <Avatar src={item.avatar ? item.avatar.toString() : ""} alt='user avatar' />
                                 <ListItemText primary={item.name} onClick={() => props.sendData(item)} />
                                 {/* <ListItemText primary={item.name} onClick={() => localStorage.setItem("selectedContact", JSON.stringify(item))} /> */}
                             </ListItemButton>
                         </ListItem>
-                })
-                }
+                    })
+                    }
                 </List>
             </Box>
             <Dialog open={showProfile}>

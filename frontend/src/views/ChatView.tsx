@@ -18,6 +18,7 @@ const ChatView = () => {
     const [inputText, setInputText] = useState<string>("");
     const [userData, setUserData] = useState<any>(null);
     const [selectedContactData, setSelectedContactData] = useState<any>("");
+    const [receiverSrc, setReceiverSrc] = useState<string>("");
 
     useEffect(() => {
 
@@ -36,7 +37,6 @@ const ChatView = () => {
     useEffect(() => {
         if (!userData || !selectedContactData) return;
         server.emit('fetchChat', { sender: userData._id, receiver: selectedContactData._id });
-        console.log("fetchChat has been triggered");
         const handleChatHistory = (chatHistory: Message[]) => {
             console.log("chatHistory", chatHistory);
             setData(chatHistory);
@@ -80,6 +80,23 @@ const ChatView = () => {
         )
     }
 
+    useEffect(() => {
+        const fetchSecondUser = async () => {
+            try {
+                if (selectedContactData) {
+                    const response = await fetch(`http://localhost:3000/getIndUser/${selectedContactData._id}`)
+                    const result = await response.json();
+                    setReceiverSrc(result);
+
+                }
+            } catch (error: any) {
+                throw new Error(error);
+            }
+        }
+
+        fetchSecondUser();
+    }, [selectedContactData])
+
     return (
         <Box>
             <Box sx={{ width: "250px", borderRight: "1px solid #ccc" }}>
@@ -94,7 +111,7 @@ const ChatView = () => {
                         {
                             data && data.map((item, index) => {
                                 return <Box key={index} sx={{ display: "flex", justifyContent: item.sender === userData._id ? "flex-end" : "flex-start" }}>
-                                    {item.text && <Card src={item.avatar} sender={item.sender} text={item.text} timeStamp={item.timeStamp} />}
+                                    {item.text && <Card src={receiverSrc} sender={item.sender} text={item.text} timeStamp={item.timeStamp} />}
                                 </Box>
                             })
                         }

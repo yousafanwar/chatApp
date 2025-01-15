@@ -34,7 +34,6 @@ export const login = async (req, res) => {
     const { email, password } = req.body;
     try {
         const findUser = await user.findOne({ email });
-        console.log(findUser);
         if (!findUser) {
             res.status(401).json({ error: "Incorrect email" })
         }

@@ -82,6 +82,17 @@ app.post('/addToMyContacts', authenticate, async (req, res) => {
     }
 })
 
+// get ind user
+app.get('/getIndUser/:_id', async (req, res) => {
+    const id = req.params._id;
+    try {
+        const response = await user.findOne({ _id: id }).select('name, email, avatar');
+        res.status(200).json(response);
+    } catch (error) {
+        res.status(500).send("Internal server error");
+    }
+})
+
 // get myContacts
 app.get('/getMyContacts/:_id', authenticate, async (req, res) => {
     const { _id } = req.params;
