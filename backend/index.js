@@ -7,6 +7,8 @@ import { Server } from "socket.io";
 import http from 'http';
 import { login, registerUser, authenticate } from './services/Auth.js'
 import bodyParser from 'body-parser';
+import imageAttachments from './db/schemas/imageMessage.js';
+import videoAttachments from './db/schemas/videoMessage.js';
 
 const app = express();
 app.use(express.json());
@@ -27,14 +29,33 @@ io.on('connection', (socket) => {
     console.log('User has been connected', socket.id);
 
     socket.on('message', async (data) => {
-        const { sender, receiver, text } = data;
+        const { sender, receiver, text, blob, blobType } = data;
         const newMessage = new message({ sender, receiver, text });
-        await newMessage.save();
-        io.emit('message', newMessage);
+        const imageResource = blob && blobType.includes("image") && new imageAttachments({ originalMessageId: newMessage._id, dbBlob: blob });
+        const videoResource = blob && blobType.includes("video") && new videoAttachments({ originalMessageId: newMessage._id, dbBlob: blob });
+        await Promise.all([
+            newMessage.save(),
+            blob && blobType.includes("image") && imageResource.save(),
+            blob && blobType.includes("video") && videoResource.save()
+        ])
+
+        const obj = {
+            id: newMessage._id,
+            sender: newMessage.sender,
+            receiver: newMessage.receiver,
+            text: newMessage.text,
+            timeStamp: newMessage.timeStamp,
+            blobFetchedFromDb: blob,
+            blobType
+        }
+        console.log(obj);
+        io.emit('message', obj);
     })
 
     socket.on('fetchChat', async (data) => {
         const { sender, receiver } = data;
+        let blobFetchedFromDb = null;
+        let blobType = "";
         const chats = await message.find({
             $or: [
                 { sender, receiver },
@@ -42,7 +63,34 @@ io.on('connection', (socket) => {
             ],
         }).sort({ timeStamp: 1 });
 
-        io.emit('chatHistory', chats);
+        const retrievedChats = await Promise.all(
+            chats.map(async (item) => {
+                const chatImages = await imageAttachments.find({ originalMessageId: item._id });
+                const chatVideos = await videoAttachments.find({ originalMessageId: item._id })
+                if (chatImages.length > 0) {
+                    blobFetchedFromDb = chatImages[0].dbBlob;
+                    blobType = "image";
+                }
+                if (chatVideos.length > 0) {
+                    blobFetchedFromDb = chatVideos[0].dbBlob;
+                    blobType = "video";
+                }
+
+                const obj = {
+                    _id: item._id,
+                    sender: item.sender,
+                    receiver: item.receiver,
+                    text: item.text,
+                    timeStamp: item.timeStamp,
+                    blobFetchedFromDb,
+                    blobType
+                }
+                blobFetchedFromDb = null;
+                blobType = null;
+                return obj;
+            })
+        );
+        io.emit('chatHistory', retrievedChats);
 
     });
     socket.on('disconnect', () => {
