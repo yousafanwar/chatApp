@@ -6,6 +6,7 @@ const Card = (props: any) => {
     const [userData, setUserData] = useState<any>("");
     const [attachmentSrc, setAttachmentSrc] = useState<string>("");
     const [renderMedia, setRenderMedia] = useState<boolean>(false);
+    const [renderBackDrop, setRenderBackDrop] = useState<boolean>(false);
 
     useEffect(() => {
         const loggedInUser = JSON.parse(localStorage.getItem("userData") || "{}");
@@ -13,12 +14,20 @@ const Card = (props: any) => {
     }, [])
 
     useEffect(() => {
-        if (props.blob) {
-            const blob = new Blob([props.blob]);
-            const url = URL.createObjectURL(blob);
-            setAttachmentSrc(url);
-            setRenderMedia(true);
+        try{
+            setRenderBackDrop(true);
+            if (props.blob) {
+                const blob = new Blob([props.blob]);
+                const url = URL.createObjectURL(blob);
+                console.log("card image url", url)
+                setAttachmentSrc(url);
+                setRenderMedia(true);
+            }
+        }finally{
+            setRenderBackDrop(false);
         }
+       
+
 
     }, [props.blob])
 
@@ -26,7 +35,6 @@ const Card = (props: any) => {
         <Box>
             <Stack direction="column" spacing={1} sx={{ backgroundColor: props.sender === userData._id ? "lightgreen" : 'lightblue', borderRadius: '10px' }}>
                 <Box sx={{ position: 'relative', display: 'inline-block' }}>
-                    {!renderMedia && (
                         <Backdrop
                             sx={{
                                 position: 'absolute',
@@ -37,14 +45,16 @@ const Card = (props: any) => {
                                 color: '#fff',
                                 zIndex: 1,
                             }}
-                            open={!renderMedia}
+                            open={renderBackDrop}
+                            onClick={() => {setRenderBackDrop(false)}}
                         >
                             <CircularProgress color="inherit" />
                         </Backdrop>
-                    )}
-                    {renderMedia && props.blobType && props.blobType == "image" && <img src={attachmentSrc} alt="image" style={{ width: "200px", height: "auto", borderRadius: "5px" }} />}
+                    
 
-                    {renderMedia && props.blobType && props.blobType == "video" && <video width="320" height="240" controls style={{ borderRadius: "5px" }}>
+                    {renderMedia && props.blobType && props.blobType.includes("image") && <img src={attachmentSrc} alt="image" style={{ width: "200px", height: "auto", borderRadius: "5px" }} onLoad={() => {setRenderBackDrop(false)}} />}
+
+                    {renderMedia && props.blobType && props.blobType.includes("video") && <video width="320" height="240" controls style={{ borderRadius: "5px" }}>
                         <source src={attachmentSrc} type="video/mp4" />
                         Your browser does not support the video tag.
                     </video>}

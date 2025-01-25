@@ -6,14 +6,6 @@ import { io } from "socket.io-client";
 import SendIcon from '@mui/icons-material/Send';
 import AddIcon from '@mui/icons-material/Add';
 
-interface Message {
-    sender: string;
-    text: string;
-    blob: any;
-    blobType: string;
-    timeStamp: { type: Date };
-}
-
 interface IRetrievedChats {
     _id: string;
     sender: string;
@@ -63,7 +55,6 @@ const ChatView = () => {
 
     useEffect(() => {
         const readNewMessage = (newMessage: any) => {
-            console.log("readNewMessage", newMessage);
             setData((preState) => [...preState, newMessage]);
         }
         server.on('message', readNewMessage);
@@ -124,21 +115,22 @@ const ChatView = () => {
             const url = URL.createObjectURL(blob);
             setOpenDialog(true);
             setAttachmentSrc(url);
+            console.log("uploaded media url: ", url);
 
         }
         reader.readAsArrayBuffer(file);
     }
 
     return (
-        <Box>
-            <Box sx={{ width: "250px", borderRight: "1px solid #ccc" }}>
+        <Box sx={{ display: "flex", height: "100vh", flexDirection: "column" }}>
+            <Box sx={{ width: "250px", borderRight: "1px solid #ccc",  flexShrink: 0 }}>
                 <SideNav sendData={fetchDataFromChild} />
             </Box>
             {!selectedContactData ? renderWelcomeMessage() :
                 <>
                     <Typography variant="h1">Chat View</Typography>
                     {selectedContactData && <Typography>Chat between {userData.name} & {selectedContactData.name}</Typography>}
-                    <Box gap={2} sx={{ display: "flex", flexDirection: "column", marginLeft: "200px" }}>
+                    <Box gap={2}>
 
                         {
                             data && data.map((item, index) => {
@@ -157,14 +149,19 @@ const ChatView = () => {
                         <Button sx={{ ":hover": { backgroundColor: "black", color: "white" } }} onClick={handleText}><SendIcon /></Button>
                     </Box>
                     <Dialog open={openDialog} onClose={() => { setOpenDialog(false) }}>
-                        <img src={attachmentSrc} alt="attachment" style={{ width: "500px", height: "auto" }} />
+                        {mediaBlob && mediaBlob.type.includes("image") && <img src={attachmentSrc} alt="attachment" style={{ width: "500px", height: "auto" }} />}
+                        {mediaBlob && mediaBlob.type.includes("video") && <video width="320" height="240" controls style={{ borderRadius: "5px" }}>
+                        <source src={attachmentSrc} type="video/mp4" />
+                        Your browser does not support the video tag.
+                    </video>}
                         <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", marginLeft: "200px", marginTop: "20px" }}>
                             <TextField fullWidth placeholder="Enter text" variant="outlined" value={inputText} onChange={(e) => { setInputText(e.target.value) }} />
                             <Button sx={{ ":hover": { backgroundColor: "black", color: "white" } }} onClick={handleText}><SendIcon /></Button>
                         </Box>
                     </Dialog>
-                </>}
+                </>}                
         </Box>
+        
     )
 }
 
