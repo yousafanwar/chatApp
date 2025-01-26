@@ -1,4 +1,4 @@
-import { Button, Box, TextField, Typography, Dialog } from "@mui/material";
+import { Button, Box, TextField, Typography, Dialog, AppBar, Avatar } from "@mui/material";
 import Card from "../components/Card";
 import { useState, useEffect } from 'react';
 import SideNav from "../components/SideNav";
@@ -23,7 +23,7 @@ const ChatView = () => {
     const [inputText, setInputText] = useState<string>("");
     const [userData, setUserData] = useState<any>(null);
     const [selectedContactData, setSelectedContactData] = useState<any>("");
-    const [receiverSrc, setReceiverSrc] = useState<string>("");
+    const [receiverSrc, setReceiverSrc] = useState<any>("");
     const [attachmentSrc, setAttachmentSrc] = useState<any>(null);
     const [openDialog, setOpenDialog] = useState<boolean>(false);
     const [mediaBlob, setmediaBlob] = useState<any>(null); // to be sent to backend
@@ -122,46 +122,53 @@ const ChatView = () => {
     }
 
     return (
-        <Box sx={{ display: "flex", height: "100vh", flexDirection: "column" }}>
-            <Box sx={{ width: "250px", borderRight: "1px solid #ccc",  flexShrink: 0 }}>
+        <Box sx={{ display: "flex", flexDirection: "column" }}>
+            <Box>
                 <SideNav sendData={fetchDataFromChild} />
             </Box>
-            {!selectedContactData ? renderWelcomeMessage() :
-                <>
-                    <Typography variant="h1">Chat View</Typography>
-                    {selectedContactData && <Typography>Chat between {userData.name} & {selectedContactData.name}</Typography>}
-                    <Box gap={2}>
-
-                        {
-                            data && data.map((item, index) => {
-                                return <Box key={index} sx={{ display: "flex", justifyContent: item.sender === userData._id ? "flex-end" : "flex-start" }}>
-                                    {item.text && <Card src={receiverSrc} sender={item.sender} text={item.text} timeStamp={item.timeStamp} blob={item.blobFetchedFromDb} blobType={item.blobType} />}
-                                </Box>
-                            })
-                        }
-                    </Box>
-                    <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", marginLeft: "200px", marginTop: "20px" }}>
-                        <TextField fullWidth placeholder="Enter text" variant="outlined" value={inputText} onChange={(e) => { setInputText(e.target.value) }} />
-                        <label htmlFor="fileUpload" style={{ margin: "1px", cursor: "pointer" }}>
-                            <AddIcon />
-                        </label>
-                        <input id="fileUpload" type="file" onChange={(e) => { handleUpload(e) }} style={{ display: "none" }} />
-                        <Button sx={{ ":hover": { backgroundColor: "black", color: "white" } }} onClick={handleText}><SendIcon /></Button>
-                    </Box>
-                    <Dialog open={openDialog} onClose={() => { setOpenDialog(false) }}>
-                        {mediaBlob && mediaBlob.type.includes("image") && <img src={attachmentSrc} alt="attachment" style={{ width: "500px", height: "auto" }} />}
-                        {mediaBlob && mediaBlob.type.includes("video") && <video width="320" height="240" controls style={{ borderRadius: "5px" }}>
-                        <source src={attachmentSrc} type="video/mp4" />
-                        Your browser does not support the video tag.
-                    </video>}
-                        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", marginLeft: "200px", marginTop: "20px" }}>
+            <Box marginLeft={30}>
+                {!selectedContactData ? renderWelcomeMessage() :
+                    <>
+                        <AppBar sx={{ width: "78%" }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'flex-start', gap: 2, marginLeft: "22px" }}>
+                                <Avatar src={receiverSrc.avatar} alt="avatar" />
+                                <Typography variant="h6">
+                                    {selectedContactData.name}
+                                </Typography>
+                            </Box>
+                        </AppBar>
+                        <Box sx={{ height: "80vh", overflow: "hidden", overflowY: "scroll" }}>
+                            {
+                                data && data.map((item, index) => {
+                                    return <Box key={index} sx={{ display: "flex", justifyContent: item.sender === userData._id ? "flex-end" : "flex-start", margin: "10px" }}>
+                                        {item.text && <Card src={receiverSrc} sender={item.sender} text={item.text} timeStamp={item.timeStamp} blob={item.blobFetchedFromDb} blobType={item.blobType} />}
+                                    </Box>
+                                })
+                            }
+                        </Box>
+                        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
                             <TextField fullWidth placeholder="Enter text" variant="outlined" value={inputText} onChange={(e) => { setInputText(e.target.value) }} />
+                            <label htmlFor="fileUpload" style={{ margin: "1px", cursor: "pointer" }}>
+                                <AddIcon />
+                            </label>
+                            <input id="fileUpload" type="file" onChange={(e) => { handleUpload(e) }} style={{ display: "none" }} />
                             <Button sx={{ ":hover": { backgroundColor: "black", color: "white" } }} onClick={handleText}><SendIcon /></Button>
                         </Box>
-                    </Dialog>
-                </>}                
+                        <Dialog open={openDialog} onClose={() => { setOpenDialog(false) }} sx={{ backdropFilter: "blur(14px)" }}>
+                            {mediaBlob && mediaBlob.type.includes("image") && <img src={attachmentSrc} alt="attachment" style={{ width: "500px", height: "auto" }} />}
+                            {mediaBlob && mediaBlob.type.includes("video") && <video width="320" height="240" controls style={{ borderRadius: "5px" }}>
+                                <source src={attachmentSrc} type="video/mp4" />
+                                Your browser does not support the video tag.
+                            </video>}
+                            <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+                                <TextField fullWidth placeholder="Enter text" variant="outlined" value={inputText} onChange={(e) => { setInputText(e.target.value) }} />
+                                <Button sx={{ ":hover": { backgroundColor: "black", color: "white" } }} onClick={handleText}><SendIcon /></Button>
+                            </Box>
+                        </Dialog>
+                    </>}
+            </Box>
         </Box>
-        
+
     )
 }
 

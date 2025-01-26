@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Box, Drawer, Button, List, Divider, ListItem, ListItemButton, Backdrop, CircularProgress, ListItemText, Typography, Avatar, ButtonBase, Dialog } from '@mui/material';
+import { Box, Drawer, Button, List, Divider, ListItem, ListItemButton, Backdrop, CircularProgress, ListItemText, Typography, Avatar, ButtonBase, Dialog, useTheme, useMediaQuery } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import CancelIcon from '@mui/icons-material/Cancel';
 import { useState, useEffect } from 'react';
@@ -14,7 +14,10 @@ interface IContact {
 
 const SideNav = (props: any) => {
 
-    const drawerWidth = 240;
+    const theme = useTheme();
+    const mobileScreenView = useMediaQuery(theme.breakpoints.down('sm'));
+
+    const drawerWidth = 340;
     const [userData, setUserData] = useState<any>(null);
     const [contacts, setContacts] = useState<IContact[]>([]);
     const [openAddContact, setOpenAddContact] = useState<boolean>(false);
@@ -119,26 +122,29 @@ const SideNav = (props: any) => {
 
     return (
         <Drawer sx={{
-            width: drawerWidth,
+            width: mobileScreenView ? "100%" : drawerWidth,
             flexShrink: 0,
             '& .MuiDrawer-paper': {
-                width: drawerWidth,
+                width: mobileScreenView ? "100%" : drawerWidth,
                 boxSizing: 'border-box',
             },
         }}
-            variant="persistent"
+            variant="permanent"
             anchor="left"
             open={true}>
-            <Box sx={{ width: 250 }} role="application">
+            <Box sx={{ width: "100%" }} role="application">
                 <Button onClick={getContacts}>Add new contacts</Button>
                 {openAddContact && <List key={contacts.length}>
                     {contacts && Array.isArray(contacts) && contacts.map((item, index) => (
-                        <ListItem key={index} disablePadding>
-                            <ListItemButton>
-                                <Avatar src={item.avatar ? item.avatar.toString() : ""} alt='avatar' />
-                                <ListItemText primary={item.name} onClick={() => handleContactClick(item)} />
-                            </ListItemButton>
-                        </ListItem>
+                        <>
+                            <ListItem key={index} disablePadding>
+                                <ListItemButton>
+                                    <Avatar src={item.avatar ? item.avatar.toString() : ""} alt='avatar' />
+                                    <ListItemText primary={item.name} onClick={() => handleContactClick(item)} />
+                                </ListItemButton>
+                            </ListItem>
+                            <Divider />
+                        </>
                     ))}
                     <Button onClick={() => setOpenAddContact(false)}>Close</Button>
                 </List>}
@@ -152,13 +158,16 @@ const SideNav = (props: any) => {
                 </Backdrop>}
                 <List key={myContactList.length}>
                     {myContactList && Array.isArray(myContactList) && myContactList.map((item, index) => {
-                        return <ListItem key={index} disablePadding>
-                            <ListItemButton>
-                                <Avatar src={item.avatar ? item.avatar.toString() : ""} alt='user avatar' />
-                                <ListItemText primary={item.name} onClick={() => props.sendData(item)} />
-                                {/* <ListItemText primary={item.name} onClick={() => localStorage.setItem("selectedContact", JSON.stringify(item))} /> */}
-                            </ListItemButton>
-                        </ListItem>
+                        return <>
+                            <ListItem key={index} disablePadding>
+                                <ListItemButton>
+                                    <Avatar src={item.avatar ? item.avatar.toString() : ""} alt='user avatar' />
+                                    <ListItemText primary={item.name} onClick={() => props.sendData(item)} />
+                                    {/* <ListItemText primary={item.name} onClick={() => localStorage.setItem("selectedContact", JSON.stringify(item))} /> */}
+                                </ListItemButton>
+                            </ListItem>
+                            <Divider />
+                        </>
                     })
                     }
                 </List>
