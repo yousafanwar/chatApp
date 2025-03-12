@@ -1,15 +1,19 @@
 import * as React from 'react';
-import { Box, Drawer, Button, List, Divider, ListItem, ListItemButton, Backdrop, CircularProgress, ListItemText, Typography, Avatar, ButtonBase, Dialog, useTheme, useMediaQuery } from '@mui/material';
+import { Box, Drawer, Button, List, Divider, ListItem, ListItemButton, Backdrop, CircularProgress, ListItemText, Typography, Avatar, ButtonBase, Dialog, useTheme, useMediaQuery, TextField, Checkbox, Alert } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import CancelIcon from '@mui/icons-material/Cancel';
+import CheckBoxIcon from '@mui/icons-material/CheckBox';
+import CheckIcon from '@mui/icons-material/Check';
 import { useState, useEffect } from 'react';
 import ProfileView from '../views/ProfileView';
 
 interface IContact {
-    _id: String,
-    name: String,
-    email: String,
-    avatar: String
+    _id: string,
+    name: string,
+    email: string,
+    avatar: string,
+    members: Array<string>,
+    adminId: string
 }
 
 const SideNav = (props: any) => {
@@ -24,9 +28,17 @@ const SideNav = (props: any) => {
     const [myContactList, setMyContactList] = useState<IContact[]>([]);
     const [showProfile, setShowProfile] = useState<boolean>(false);
     const [showBackdrop, setShowBackdrop] = useState<boolean>(false);
+    const [openGroupDialog, setOpenGroupDialog] = useState<boolean>(false);
+    const [groupName, setGroupName] = useState<string>("");
+    const [selectedGroupItem, setSelectedGroupItem] = useState<any[]>([]);
+    const [groupCreationSuccess, setGroupCreationSuccess] = useState<boolean>(false);
+    const [src, setSrc] = useState<any>(null);
+
 
     useEffect(() => {
-        setUserData(JSON.parse(localStorage.getItem("userData") || "{}"));
+        const loggedInUserData = JSON.parse(localStorage.getItem("userData") || "{}");
+        setUserData(loggedInUserData);
+        setSrc(loggedInUserData.avatar ? loggedInUserData.avatar.toString() : "");
 
     }, [])
 
@@ -85,29 +97,42 @@ const SideNav = (props: any) => {
         }
     }
 
-    useEffect(() => {
-        const renderMyContactList = async () => {
-            if (userData) {
-                try {
-                    const response = await fetch(`http://localhost:3000/getMyContacts/${userData._id}`, {
-                        headers: {
-                            authorization: `Bearer ${userData.token}`
-                        }
-                    });
-                    if (!response.ok) {
-                        alert("You are not authenticated, please login again");
-                        window.location.href = '/login';
+    const renderMyContactList = async () => {
+        if (userData) {
+            try {
+                const response = await fetch(`http://localhost:3000/getMyContacts/${userData._id}`, {
+                    headers: {
+                        authorization: `Bearer ${userData.token}`
                     }
-                    const result = await response.json();
-                    setMyContactList(result);
+                });
+                if (!response.ok) {
+                    alert("You are not authenticated, please login again");
+                    window.location.href = '/login';
                 }
-                catch (error) {
-                    console.error(error);
-                }
+                const result = await response.json();
+                setMyContactList(result);
             }
-        };
+            catch (error) {
+                console.error(error);
+            }
+        }
+    };
 
-        renderMyContactList();
+    useEffect(() => {
+
+        // const fetch = async () => {
+        //     try{
+        //         await Promise.all([
+        //              renderMyContactList(),
+        //              renderAllGroups() 
+        //             ])
+        //     }finally{
+        //     }
+        // };
+
+        //        fetch();
+        renderAllGroups();
+
     }, [userData, showBackdrop])
 
     const handleLogOut = () => {
@@ -119,6 +144,69 @@ const SideNav = (props: any) => {
     const handleClose = () => {
         setShowBackdrop(false);
     }
+
+    const closeGroupDialog = () => {
+        setOpenGroupDialog(false);
+    }
+
+    const handleGroup = async () => {
+
+        const groupObj = {
+            name: groupName,
+            members: selectedGroupItem,
+            adminId: userData._id
+        }
+
+        try {
+            const response = await fetch("http://localhost:3000/createGroup", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(groupObj)
+            })
+            if (!response.ok) {
+                throw new Error("Error while creating new group");
+            } else {
+                console.log("create new group response", response);
+                setGroupCreationSuccess(true);
+            }
+        } catch (error) {
+            console.error("Error", error);
+        }
+    }
+
+    const renderAllGroups = async () => {
+        if (userData) {
+            const response = await fetch(`http://localhost:3000/getGroups/${userData._id}`);
+            const result = await response.json();
+            console.log("groups", result);
+            await renderMyContactList();
+
+            setMyContactList((prevState) => [...prevState, ...result.map((groupItem: IContact) => ({
+                groupId: groupItem._id,
+                name: groupItem.name,
+                email: groupItem.email,
+                avatar: groupItem.avatar,
+                members: groupItem.members,
+                adminId: groupItem.adminId,
+            }))]);
+        }
+    }
+
+    useEffect(() => {
+        const fetchUpdatedUserData = async () => {
+            if (userData) {
+                const response = await fetch(`http://localhost:3000/getUpdatedUser/${userData._id}`);
+                const result = await response.json();
+                setSrc(result.avatar ? result.avatar.toString() : "")
+            }
+        }
+
+        fetchUpdatedUserData();
+    }, [userData])
+
+
 
     return (
         <Drawer sx={{
@@ -149,6 +237,36 @@ const SideNav = (props: any) => {
                     <Button onClick={() => setOpenAddContact(false)}>Close</Button>
                 </List>}
                 <Divider />
+                <Button onClick={() => { setOpenGroupDialog(true) }}>Create a new Group</Button>
+                <Dialog open={openGroupDialog} onClose={closeGroupDialog}>
+                    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column', height: '80vh' }}>
+                        <TextField variant='filled' label="Group name" value={groupName} onChange={(e) => { setGroupName(e.target.value) }} />
+                        <Typography>Add members</Typography>
+                        <List key={myContactList.length}>
+                            {myContactList && Array.isArray(myContactList) && myContactList.map((item, index) => {
+                                return <>
+                                    <ListItem key={index} disablePadding>
+                                        <ListItemButton>
+                                            <Avatar src={item.avatar ? item.avatar.toString() : ""} alt='user avatar' />
+                                            {/* <ListItemText primary={item.name} onClick={() => handleGroup(item, index)} /> */}
+                                            <ListItemText primary={item.name} onClick={() => setSelectedGroupItem((prevState: any) => selectedGroupItem.includes(item._id) ? selectedGroupItem.filter((i: any) => { return i !== item._id }) : [...prevState, item._id])} />
+                                            {selectedGroupItem && selectedGroupItem.includes(item._id) && <CheckBoxIcon />}
+                                        </ListItemButton>
+                                    </ListItem>
+                                    <Divider />
+                                </>
+                            })
+                            }
+                            <Button onClick={handleGroup}>Create group</Button>
+                            {groupCreationSuccess && <><Alert icon={<CheckIcon fontSize="inherit" />} severity="success">
+                                Group created sucessfuly.
+                            </Alert>
+                                <Button onClick={() => { setOpenGroupDialog(false) }}>Continue</Button>
+                            </>
+                            }
+                        </List>
+                    </Box>
+                </Dialog>
                 {showBackdrop && <Backdrop
                     sx={(theme) => ({ color: '#fff', zIndex: theme.zIndex.drawer + 1 })}
                     open={showBackdrop}
@@ -177,7 +295,7 @@ const SideNav = (props: any) => {
                 <ProfileView />
             </Dialog>
             {userData && <><ButtonBase onClick={() => { setShowProfile(true) }}>
-                <Avatar alt="User avatar" src={userData.avatar ? userData.avatar.toString() : ""} sx={{ width: 150, height: 150 }} />
+                <Avatar alt="User avatar" src={src} sx={{ width: 150, height: 150 }} />
             </ButtonBase >
                 <Typography>Hi {userData.name}</Typography></>
             }

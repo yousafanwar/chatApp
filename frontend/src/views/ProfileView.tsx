@@ -8,22 +8,6 @@ const ProfileView = () => {
     const [successMessage, setSuccessMessage] = useState<boolean>(false);
 
     useEffect(() => {
-
-        const fetchUserData = async () => {
-            if (userData) {
-                const response = await fetch(`http://localhost:3000/getIndUser/${userData._id}`);
-                const result = await response.json();
-                console.log("newly created api", result);
-                if (!src) {
-                    setSrc(result.avatar.toString());
-                }
-            }
-        }
-        fetchUserData();
-    }, [])
-
-
-    useEffect(() => {
         const loggedInUser = JSON.parse(localStorage.getItem("userData") || "{}");
         setUserData(loggedInUser);
         if (loggedInUser.avatar) {

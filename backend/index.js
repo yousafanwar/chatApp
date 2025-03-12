@@ -3,6 +3,7 @@ import cors from 'cors';
 import mongoose from './db/db.js';
 import message from './db/schemas/message.js';
 import user from './db/schemas/user.js';
+import group from './db/schemas/group.js';
 import { Server } from "socket.io";
 import http from 'http';
 import { login, registerUser, authenticate } from './services/Auth.js'
@@ -29,8 +30,8 @@ io.on('connection', (socket) => {
     console.log('User has been connected', socket.id);
 
     socket.on('message', async (data) => {
-        const { sender, receiver, text, blob, blobType } = data;
-        const newMessage = new message({ sender, receiver, text });
+        const { sender, receiver, text, blob, blobType, groupId } = data;
+        const newMessage = new message({ sender, receiver, text, groupId });
         const imageResource = blob && blobType.includes("image") && new imageAttachments({ originalMessageId: newMessage._id, dbBlob: blob });
         const videoResource = blob && blobType.includes("video") && new videoAttachments({ originalMessageId: newMessage._id, dbBlob: blob });
         await Promise.all([
@@ -46,27 +47,35 @@ io.on('connection', (socket) => {
             text: newMessage.text,
             timeStamp: newMessage.timeStamp,
             blobFetchedFromDb: blob,
+            groupId: newMessage.groupId,
             blobType
         }
-        console.log(obj);
         io.emit('message', obj);
     })
 
     socket.on('fetchChat', async (data) => {
-        const { sender, receiver } = data;
+        let { sender, receiver, groupId } = data;
         let blobFetchedFromDb = null;
         let blobType = "";
-        const chats = await message.find({
-            $or: [
-                { sender, receiver },
-                { sender: receiver, receiver: sender },
-            ],
-        }).sort({ timeStamp: 1 });
+        let chats = [];
+
+        if (groupId) {
+            chats = await message.find({ groupId });
+        } else {
+            chats = await message.find({
+                $or: [
+                    { sender, receiver },
+                    { sender: receiver, receiver: sender },
+                ],
+                groupId: null
+            }).sort({ timeStamp: 1 });
+        }
 
         const retrievedChats = await Promise.all(
             chats.map(async (item) => {
                 const chatImages = await imageAttachments.find({ originalMessageId: item._id });
-                const chatVideos = await videoAttachments.find({ originalMessageId: item._id })
+                const chatVideos = await videoAttachments.find({ originalMessageId: item._id });
+                const senderAvatar = await user.findById(sender, 'name email avatar');
                 if (chatImages.length > 0) {
                     blobFetchedFromDb = chatImages[0].dbBlob;
                     blobType = "image";
@@ -79,14 +88,17 @@ io.on('connection', (socket) => {
                 const obj = {
                     _id: item._id,
                     sender: item.sender,
-                    receiver: item.receiver,
+                    receiver: item.receiver ? item.receiver : null,
                     text: item.text,
                     timeStamp: item.timeStamp,
                     blobFetchedFromDb,
-                    blobType
+                    groupId: item.groupId ? item.groupId : null,
+                    blobType,
+                    senderAvatar
                 }
                 blobFetchedFromDb = null;
                 blobType = null;
+
                 return obj;
             })
         );
@@ -102,12 +114,50 @@ app.post('/login', login);
 
 app.post('/registerUser', registerUser);
 
+app.post('/createGroup', async (req, res) => {
+    const { name, members, adminId } = req.body;
+    try {
+        const newGroup = new group({ name, members, adminId });
+        newGroup.save();
+        res.status(200).send('Group Created successfully')
+    } catch (error) {
+        res.status(500).json({ message: 'Internal server error' })
+    }
+})
+
+app.get('/getGroups/:id', async (req, res) => {
+    const id = req.params.id;
+    try {
+        const response = await group.find({ $or: [{ members: id }, { adminId: id }] });
+        res.status(200).send(response);
+    }
+    catch (error) {
+        res.status(500).json({ message: 'Internal server error' })
+    }
+
+})
+
+app.put('/updateGroup', async (req, res) => {
+    const { newMember, groupId } = req.body;
+
+    try {
+        let updatedGroup = await group.findByIdAndUpdate(groupId, { $push: { members: newMember } }, { new: true });
+        if (!updatedGroup) {
+            res.status(400).send('Could not find the group');
+        } else {
+            res.status(200).send('group members updated successfully', updatedGroup);
+        }
+    }
+    catch (error) {
+        res.status(500).send('internal server error');
+    }
+})
+
 app.put('/updateUser/:id', async (req, res) => {
     const id = req.params.id;
 
     const { image } = req.body;
     const response = await user.updateOne({ _id: id }, { $set: { avatar: image } });
-    console.log("update response", response);
     res.json(response);
 
 });
@@ -130,8 +180,25 @@ app.post('/addToMyContacts', authenticate, async (req, res) => {
     }
 })
 
-// get ind user
-app.get('/getIndUser/:_id', async (req, res) => {
+// gets every individual of a group
+app.post('/getIndUser', async (req, res) => {
+    try {
+        const { memberIds, adminId } = req.body;
+        const [chatMemberIds, chatAdminId] = await Promise.all([
+            Promise.all(
+                memberIds.map(id => user.findById(id, 'name email avatar'))
+            ),
+            user.findById(adminId, 'name email avatar')
+        ]);
+        const responseObj = { groupMembers: chatMemberIds, groupAdmin: chatAdminId };
+        res.status(200).json(responseObj);
+    } catch (error) {
+        res.status(500).send("Internal server error");
+    }
+})
+
+// this method is being used to get the updated user profile picture
+app.get('/getUpdatedUser/:_id', async (req, res) => {
     const id = req.params._id;
     try {
         const response = await user.findOne({ _id: id }).select('name, email, avatar');
@@ -139,6 +206,7 @@ app.get('/getIndUser/:_id', async (req, res) => {
     } catch (error) {
         res.status(500).send("Internal server error");
     }
+
 })
 
 // get myContacts

@@ -9,11 +9,12 @@ import AddIcon from '@mui/icons-material/Add';
 interface IRetrievedChats {
     _id: string;
     sender: string;
-    receiver: string;
+    receiver: Array<string>;
     text: string;
     timeStamp: string;
     blobFetchedFromDb: any;
     blobType: string;
+    senderAvatar: any;
 }
 
 const server = io("http://localhost:3000/");
@@ -42,7 +43,11 @@ const ChatView = () => {
 
     useEffect(() => {
         if (!userData || !selectedContactData) return;
-        server.emit('fetchChat', { sender: userData._id, receiver: selectedContactData._id });
+        if (!selectedContactData.groupId) {
+            server.emit('fetchChat', { sender: userData._id, receiver: selectedContactData._id });
+        } else {
+            server.emit('fetchChat', { sender: userData._id, receiver: selectedContactData.members, groupId: selectedContactData.groupId });
+        }
         const handleChatHistory = (chatHistory: IRetrievedChats[]) => {
             setData(chatHistory);
         };
@@ -64,12 +69,20 @@ const ChatView = () => {
     }, []);
 
     const handleText = () => {
-        console.log(inputText, mediaBlob);
         if (mediaBlob) {
-            server.emit('message', { sender: userData._id, receiver: selectedContactData._id, text: inputText, blob: mediaBlob, blobType: mediaBlob.type });
+            if (!selectedContactData.groupId) {
+                server.emit('message', { sender: userData._id, receiver: selectedContactData._id, text: inputText, blob: mediaBlob, blobType: mediaBlob.type });
+            } else {
+                server.emit('message', { sender: userData._id, receiver: selectedContactData.members, groupId: selectedContactData.groupId, text: inputText, blob: mediaBlob, blobType: mediaBlob.type });
+            }
+
             setmediaBlob(null);
         } else {
-            server.emit('message', { sender: userData._id, receiver: selectedContactData._id, text: inputText });
+            if (!selectedContactData.groupId) {
+                server.emit('message', { sender: userData._id, receiver: selectedContactData._id, text: inputText });
+            } else {
+                server.emit('message', { sender: userData._id, receiver: selectedContactData.members, groupId: selectedContactData.groupId, text: inputText });
+            }
         }
         setInputText("");
         setOpenDialog(false);
@@ -87,22 +100,52 @@ const ChatView = () => {
         )
     }
 
-    useEffect(() => {
-        const fetchSecondUser = async () => {
-            try {
-                if (selectedContactData) {
-                    const response = await fetch(`http://localhost:3000/getIndUser/${selectedContactData._id}`)
-                    const result = await response.json();
-                    setReceiverSrc(result);
-
+    const getChatMembers = async () => {
+        try {
+            if (selectedContactData) {
+                const obj = {
+                    memberIds: selectedContactData.members,
+                    adminId: selectedContactData.adminId[0],
+                    groupId: selectedContactData.groupId
                 }
-            } catch (error: any) {
-                throw new Error(error);
+                const response = await fetch(`http://localhost:3000/getIndUser`, {
+                    method: 'POST',
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(obj)
+                })
+                const result = await response.json();
+                console.log('getIndUser result', result.groupMembers);
+                setReceiverSrc(result.groupMembers);
             }
+        } catch (error: any) {
+            throw new Error(error);
+        }
+    }
+
+    const fetchSecondUser = async (userId: string) => {
+        try {
+            if (userId) {
+                const response = await fetch(`http://localhost:3000/getUpdatedUser/${userId}`)
+                const result = await response.json();
+                console.log('getSecondUser result', result);
+                setReceiverSrc(result);
+            }
+        } catch (error: any) {
+            throw new Error(error);
+        }
+    }
+    useEffect(() => {
+        console.log("selectedContactData", selectedContactData);
+
+
+        if (selectedContactData.adminId) {
+            getChatMembers();
+        } else {
+            fetchSecondUser(selectedContactData._id);
         }
 
-        fetchSecondUser();
     }, [selectedContactData])
+
 
     const handleUpload = (e: any) => {
         const file = e.target.files[0];
