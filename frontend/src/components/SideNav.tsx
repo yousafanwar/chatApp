@@ -180,7 +180,6 @@ const SideNav = (props: any) => {
         if (userData) {
             const response = await fetch(`http://localhost:3000/getGroups/${userData._id}`);
             const result = await response.json();
-            console.log("groups", result);
             await renderMyContactList();
 
             setMyContactList((prevState) => [...prevState, ...result.map((groupItem: IContact) => ({

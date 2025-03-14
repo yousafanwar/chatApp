@@ -34,10 +34,11 @@ io.on('connection', (socket) => {
         const newMessage = new message({ sender, receiver, text, groupId });
         const imageResource = blob && blobType.includes("image") && new imageAttachments({ originalMessageId: newMessage._id, dbBlob: blob });
         const videoResource = blob && blobType.includes("video") && new videoAttachments({ originalMessageId: newMessage._id, dbBlob: blob });
+        const senderAvatar = await user.findById(sender, 'name email avatar').lean();
         await Promise.all([
             newMessage.save(),
             blob && blobType.includes("image") && imageResource.save(),
-            blob && blobType.includes("video") && videoResource.save()
+            blob && blobType.includes("video") && videoResource.save(),
         ])
 
         const obj = {
@@ -48,7 +49,8 @@ io.on('connection', (socket) => {
             timeStamp: newMessage.timeStamp,
             blobFetchedFromDb: blob,
             groupId: newMessage.groupId,
-            blobType
+            blobType,
+            senderAvatar
         }
         io.emit('message', obj);
     })
@@ -75,7 +77,7 @@ io.on('connection', (socket) => {
             chats.map(async (item) => {
                 const chatImages = await imageAttachments.find({ originalMessageId: item._id });
                 const chatVideos = await videoAttachments.find({ originalMessageId: item._id });
-                const senderAvatar = await user.findById(sender, 'name email avatar');
+                const senderAvatar = await user.findById(item.sender, 'name email avatar').lean();
                 if (chatImages.length > 0) {
                     blobFetchedFromDb = chatImages[0].dbBlob;
                     blobType = "image";

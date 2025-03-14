@@ -114,7 +114,6 @@ const ChatView = () => {
                     body: JSON.stringify(obj)
                 })
                 const result = await response.json();
-                console.log('getIndUser result', result.groupMembers);
                 setReceiverSrc(result.groupMembers);
             }
         } catch (error: any) {
@@ -184,7 +183,7 @@ const ChatView = () => {
                             {
                                 data && data.map((item, index) => {
                                     return <Box key={index} sx={{ display: "flex", justifyContent: item.sender === userData._id ? "flex-end" : "flex-start", margin: "10px" }}>
-                                        {item.text && <Card src={receiverSrc} sender={item.sender} text={item.text} timeStamp={item.timeStamp} blob={item.blobFetchedFromDb} blobType={item.blobType} />}
+                                        {item.text && <Card src={item.senderAvatar} sender={item.sender} text={item.text} timeStamp={item.timeStamp} blob={item.blobFetchedFromDb} blobType={item.blobType} />}
                                     </Box>
                                 })
                             }
